@@ -69,16 +69,16 @@ selected_module:
   # 语音识别模块，默认使用FunASR本地模型
   ASR: FunASR
   # 将根据配置名称对应的type调用实际的LLM适配器
-  LLM: ChatGLMLLM
+  LLM: DoubaoLLM
   # TTS将根据配置名称对应的type调用实际的TTS适配器
   TTS: EdgeTTS
   # 记忆模块，默认不开启记忆；如果想使用超长记忆，推荐使用mem0ai；如果注重隐私，请使用本地的mem_local_short
-  Memory: nomem
+  Memory: mem_local_short
   # 意图识别模块，默认不开启。开启后，可以播放音乐、控制音量、识别退出指令
   # 意图识别使用intent_llm，优点：通用性强，缺点：增加串行前置意图识别模块，会增加处理时间
   # 意图识别使用function_call，缺点：需要所选择的LLM支持function_call，优点：按需调用工具、速度快
   # 如果意图识别设置成 function_call，建议把LLM设置成：DoubaoLLM，使用的具体model_name是：doubao-pro-32k-functioncall-241028
-  Intent: nointent
+  Intent: function_call
 
 # 意图识别，是用于理解用户意图的模块，例如：播放音乐
 Intent:
@@ -112,7 +112,7 @@ Memory:
     type: mem0ai
     # https://app.mem0.ai/dashboard/api-keys
     # 每月有1000次免费调用
-    api_key: 你的mem0ai api key
+    api_key: m0-Q3lpCw5eaWo7sJBgIiyjPayOygtonjWNrfQAJhY1
   nomem:
     # 不想使用记忆功能，可以使用nomem
     type: nomem
@@ -127,8 +127,8 @@ ASR:
     output_dir: tmp/
   DoubaoASR:
     type: doubao
-    appid: 你的火山引擎语音合成服务appid
-    access_token: 你的火山引擎语音合成服务access_token
+    appid: 4378584077
+    access_token: d3_XG4mctn8KlCOdbXwQhMPHL5NXP8qY
     cluster: volcengine_input_common
     output_dir: tmp/
 VAD:
@@ -155,14 +155,14 @@ LLM:
     # 开通后，进入这里获取密钥：https://console.volcengine.com/ark/region:ark+cn-beijing/apiKey?apikey=%7B%7D
     base_url: https://ark.cn-beijing.volces.com/api/v3
     model_name: doubao-pro-32k-functioncall-241028
-    api_key: 你的doubao web key
+    api_key: 92222a47-6560-4a5e-9efe-6f6081638090
   DeepSeekLLM:
     # 定义LLM API类型
     type: openai
     # 可在这里找到你的api key https://platform.deepseek.com/
     model_name: deepseek-chat
     url: https://api.deepseek.com
-    api_key: 你的deepseek web key
+    api_key: sk-26f65ea679054647bc7c659dc7996723
   ChatGLMLLM:
     # 定义LLM API类型
     type: openai
@@ -247,7 +247,7 @@ TTS:
     model: FunAudioLLM/CosyVoice2-0.5B
     voice: FunAudioLLM/CosyVoice2-0.5B:alex
     output_dir: tmp/
-    access_token: 你的硅基流动API密钥
+    access_token: sk-vyppovivndcfmjwzzcvotqhtfrmufhodpanostwlbbqvyxha
     response_format: wav
   CozeCnTTS:
     type: cozecn
