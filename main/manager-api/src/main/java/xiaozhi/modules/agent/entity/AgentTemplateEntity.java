@@ -85,6 +85,21 @@ public class AgentTemplateEntity implements Serializable {
     private String systemPrompt;
 
     /**
+     * 智能体类型: normal(普通智能体) | promptx(PromptX智能体)
+     */
+    private String agentType = "normal";
+
+    /**
+     * PromptX角色ID (仅promptx类型有效)
+     */
+    private String promptxRoleId;
+
+    /**
+     * PromptX角色来源: system/project/user (仅promptx类型有效)
+     */
+    private String promptxRoleSource;
+
+    /**
      * 总结记忆
      */
     private String summaryMemory;
@@ -125,4 +140,12 @@ public class AgentTemplateEntity implements Serializable {
 
     @TableField(exist = false)
     private static final long serialVersionUID = 1L;
+
+    /**
+     * 判断是否为PromptX智能体
+     */
+    @TableField(exist = false)
+    public boolean isPromptXAgent() {
+        return "promptx".equalsIgnoreCase(this.agentType);
+    }
 }

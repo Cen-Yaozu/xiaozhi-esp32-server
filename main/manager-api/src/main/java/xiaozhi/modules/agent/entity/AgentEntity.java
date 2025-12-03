@@ -3,6 +3,7 @@ package xiaozhi.modules.agent.entity;
 import java.util.Date;
 
 import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 
@@ -57,6 +58,15 @@ public class AgentEntity {
     @Schema(description = "角色设定参数")
     private String systemPrompt;
 
+    @Schema(description = "智能体类型: normal(普通智能体) | promptx(PromptX智能体)")
+    private String agentType = "normal";
+
+    @Schema(description = "PromptX角色ID (仅promptx类型有效)")
+    private String promptxRoleId;
+
+    @Schema(description = "PromptX角色来源: system/project/user (仅promptx类型有效)")
+    private String promptxRoleSource;
+
     @Schema(description = "总结记忆", example = "构建可生长的动态记忆网络，在有限空间内保留关键信息的同时，智能维护信息演变轨迹\n" +
             "根据对话记录，总结user的重要信息，以便在未来的对话中提供更个性化的服务", required = false)
     private String summaryMemory;
@@ -81,4 +91,27 @@ public class AgentEntity {
 
     @Schema(description = "更新时间")
     private Date updatedAt;
+
+    /**
+     * 判断是否为PromptX智能体
+     */
+    @TableField(exist = false)
+    public boolean isPromptXAgent() {
+        return "promptx".equalsIgnoreCase(this.agentType);
+    }
+
+    /**
+     * 验证PromptX智能体字段完整性
+     * @throws IllegalStateException 如果字段不完整
+     */
+    public void validatePromptXFields() {
+        if (isPromptXAgent()) {
+            if (promptxRoleId == null || promptxRoleId.trim().isEmpty()) {
+                throw new IllegalStateException("PromptX智能体必须指定角色ID");
+            }
+            if (promptxRoleSource == null || promptxRoleSource.trim().isEmpty()) {
+                throw new IllegalStateException("PromptX智能体必须指定角色来源");
+            }
+        }
+    }
 }

@@ -18,6 +18,15 @@ public class AgentDTO {
     @Schema(description = "智能体名称", example = "客服助手")
     private String agentName;
 
+    @Schema(description = "智能体类型: normal(普通智能体) | promptx(PromptX智能体)", example = "normal")
+    private String agentType;
+
+    @Schema(description = "PromptX角色ID (仅promptx类型有效)", example = "product-manager")
+    private String promptxRoleId;
+
+    @Schema(description = "PromptX角色来源: system/project/user (仅promptx类型有效)", example = "system")
+    private String promptxRoleSource;
+
     @Schema(description = "语音合成模型名称", example = "tts_model_01")
     private String ttsModelName;
 

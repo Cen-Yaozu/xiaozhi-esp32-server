@@ -261,6 +261,15 @@ public class AgentServiceImpl extends BaseServiceImpl<AgentDao, AgentEntity> imp
         if (dto.getSort() != null) {
             existingEntity.setSort(dto.getSort());
         }
+        if (dto.getAgentType() != null) {
+            existingEntity.setAgentType(dto.getAgentType());
+        }
+        if (dto.getPromptxRoleId() != null) {
+            existingEntity.setPromptxRoleId(dto.getPromptxRoleId());
+        }
+        if (dto.getPromptxRoleSource() != null) {
+            existingEntity.setPromptxRoleSource(dto.getPromptxRoleSource());
+        }
 
         // 更新函数插件信息
         List<AgentUpdateDTO.FunctionInfo> functions = dto.getFunctions();
@@ -335,6 +344,10 @@ public class AgentServiceImpl extends BaseServiceImpl<AgentDao, AgentEntity> imp
         if (!b) {
             throw new RenException(ErrorCode.LLM_INTENT_PARAMS_MISMATCH);
         }
+
+        // 验证PromptX字段
+        existingEntity.validatePromptXFields();
+
         this.updateById(existingEntity);
     }
 
@@ -412,6 +425,9 @@ public class AgentServiceImpl extends BaseServiceImpl<AgentDao, AgentEntity> imp
             entity.setLangCode(template.getLangCode());
             entity.setLanguage(template.getLanguage());
         }
+
+        // 验证PromptX字段
+        entity.validatePromptXFields();
 
         // 设置用户ID和创建者信息
         UserDetail user = SecurityUser.getUser();

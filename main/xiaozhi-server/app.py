@@ -9,6 +9,7 @@ from core.utils.util import get_local_ip, validate_mcp_endpoint
 from core.http_server import SimpleHttpServer
 from core.websocket_server import WebSocketServer
 from core.utils.util import check_ffmpeg_installed
+from core.providers.tools.server_mcp.mcp_manager import ServerMCPManager
 
 TAG = __name__
 logger = setup_logging()
@@ -63,11 +64,16 @@ async def main():
     # 添加 stdin 监控任务
     stdin_task = asyncio.create_task(monitor_stdin())
 
+    # 初始化用于HTTP API的MCP Manager
+    http_mcp_manager = ServerMCPManager(conn=None)
+    await http_mcp_manager.initialize_servers()
+    logger.bind(tag=TAG).info("PromptX MCP服务已初始化用于HTTP API")
+
     # 启动 WebSocket 服务器
     ws_server = WebSocketServer(config)
     ws_task = asyncio.create_task(ws_server.start())
     # 启动 Simple http 服务器
-    ota_server = SimpleHttpServer(config)
+    ota_server = SimpleHttpServer(config, mcp_manager=http_mcp_manager)
     ota_task = asyncio.create_task(ota_server.start())
 
     read_config_from_api = config.get("read_config_from_api", False)
@@ -80,6 +86,16 @@ async def main():
         )
     logger.bind(tag=TAG).info(
         "视觉分析接口是\thttp://{}:{}/mcp/vision/explain",
+        get_local_ip(),
+        port,
+    )
+    logger.bind(tag=TAG).info(
+        "PromptX角色列表\thttp://{}:{}/api/promptx/roles",
+        get_local_ip(),
+        port,
+    )
+    logger.bind(tag=TAG).info(
+        "PromptX生成提示词\thttp://{}:{}/api/promptx/generate-prompt",
         get_local_ip(),
         port,
     )

@@ -12,8 +12,10 @@ import java.util.stream.Collectors;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import lombok.AllArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import xiaozhi.common.constant.Constant;
 import xiaozhi.common.utils.AESUtils;
 import xiaozhi.common.utils.HashEncryptionUtil;
@@ -25,8 +27,9 @@ import xiaozhi.modules.sys.utils.WebSocketClientManager;
 
 @AllArgsConstructor
 @Service
-@Slf4j
 public class AgentMcpAccessPointServiceImpl implements AgentMcpAccessPointService {
+    private static final Logger log = LoggerFactory.getLogger(AgentMcpAccessPointServiceImpl.class);
+
     private SysParamsService sysParamsService;
 
     @Override

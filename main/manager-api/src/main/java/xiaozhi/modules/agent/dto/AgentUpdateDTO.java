@@ -23,6 +23,15 @@ public class AgentUpdateDTO implements Serializable {
     @Schema(description = "智能体名称", example = "客服助手", nullable = true)
     private String agentName;
 
+    @Schema(description = "智能体类型: normal(普通智能体) | promptx(PromptX智能体)", example = "normal", nullable = true)
+    private String agentType;
+
+    @Schema(description = "PromptX角色ID (仅promptx类型有效)", example = "product-manager", nullable = true)
+    private String promptxRoleId;
+
+    @Schema(description = "PromptX角色来源: system/project/user (仅promptx类型有效)", example = "system", nullable = true)
+    private String promptxRoleSource;
+
     @Schema(description = "语音识别模型标识", example = "asr_model_02", nullable = true)
     private String asrModelId;
 

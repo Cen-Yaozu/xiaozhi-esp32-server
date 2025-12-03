@@ -51,6 +51,12 @@
         "Authorization": "Bearer YOUR TOKEN"
       },
       "des": "使用Streamable HTTP传输模式，适用于生产环境的Web部署"
+    },
+    "promptx": {
+      "url": "http://127.0.0.1:5203/mcp",
+      "transport": "streamable-http",
+      "des": "PromptX AI角色和工具管理器 - HTTP模式集成",
+      "link": "https://github.com/Deepractice/PromptX"
     }
   }
 }
