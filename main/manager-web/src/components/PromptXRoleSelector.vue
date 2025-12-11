@@ -71,7 +71,7 @@ export default {
     ...mapActions('promptxAgent', ['fetchRoles']),
     async loadRoles() {
       try {
-        await this.fetchRoles()
+        await this.fetchRoles(true)
         this.error = null
       } catch (err) {
         this.error = err.message || '加载PromptX角色列表失败'

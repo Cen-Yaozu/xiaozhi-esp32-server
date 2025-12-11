@@ -149,17 +149,20 @@ const actions = {
       commit('SET_LOADING', true)
       commit('SET_ERROR', null)
 
-      Api.promptx.getPromptXRoles(({ data, err }) => {
+      Api.promptx.getPromptXRoles(({ data: res, err }) => {
         commit('SET_LOADING', false)
 
-        if (err || !data || data.code !== 0) {
-          const errorMsg = err?.message || data?.msg || '获取角色列表失败'
+        if (err || !res) {
+          const errorMsg = err?.message || '获取角色列表失败'
           commit('SET_ERROR', errorMsg)
           reject(new Error(errorMsg))
           return
         }
 
-        commit('SET_ROLES', data.data || [])
+        // res.data 是响应体 { code: 0, msg: 'success', data: [...] }
+        // res.data.data 才是真正的角色列表
+        const responseBody = res.data || {}
+        commit('SET_ROLES', responseBody.data || [])
         commit('SET_LAST_FETCH_TIME', Date.now())
         resolve()
       })
@@ -172,20 +175,21 @@ const actions = {
    * @param {import('../../types/promptx').GeneratePromptRequest} request
    * @returns {Promise<string>}
    */
-  generateSystemPrompt({ commit }, request) {
-    return new Promise((resolve, reject) => {
-      Api.promptx.generateSystemPrompt(request, ({ data, err }) => {
-        if (err || !data || data.code !== 0) {
-          const errorMsg = err?.message || data?.msg || '生成系统提示词失败'
-          reject(new Error(errorMsg))
-          return
-        }
+    generateSystemPrompt({ commit }, request) {
+      return new Promise((resolve, reject) => {
+        Api.promptx.generateSystemPrompt(request, ({ data, err }) => {
+          const body = data?.data
+          if (err || !body || body.code !== 0) {
+            const errorMsg = err?.message || body?.msg || '生成系统提示词失败'
+            reject(new Error(errorMsg))
+            return
+          }
 
-        resolve(data.data)
+          resolve(body.data)
+        })
       })
-    })
+    }
   }
-}
 
 export default {
   namespaced: true,

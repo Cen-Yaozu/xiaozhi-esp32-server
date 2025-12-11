@@ -35,10 +35,10 @@ class PromptXService:
             return self._promptx_available
 
         try:
-            # 检查promptx_discover工具是否存在
-            self._promptx_available = self.mcp_manager.is_mcp_tool("promptx_discover")
+            # 检查discover工具是否存在（PromptX MCP工具名称为discover）
+            self._promptx_available = self.mcp_manager.is_mcp_tool("discover")
             if not self._promptx_available:
-                logger.bind(tag=TAG).warning("PromptX MCP服务不可用: 未找到promptx_discover工具")
+                logger.bind(tag=TAG).warning("PromptX MCP服务不可用: 未找到discover工具")
             return self._promptx_available
         except Exception as e:
             logger.bind(tag=TAG).error(f"检查PromptX服务可用性失败: {e}")
@@ -70,32 +70,44 @@ class PromptXService:
             raise RuntimeError(error_msg)
 
         try:
-            logger.bind(tag=TAG).info("调用promptx_discover工具获取角色列表")
+            logger.bind(tag=TAG).info("调用discover工具获取角色列表")
 
             # 调用MCP discover工具,focus='roles'表示只获取角色
             result = await self.mcp_manager.execute_tool(
-                "promptx_discover",
+                "discover",
                 {"focus": "roles"}
             )
 
-            logger.bind(tag=TAG).debug(f"promptx_discover返回结果: {result}")
+            logger.bind(tag=TAG).info(f"discover返回结果: {result}")
 
             # 解析MCP工具返回结果
-            # MCP工具通常返回格式为: { "content": [...], "isError": false }
-            if isinstance(result, dict):
+            # MCP工具返回格式可能是对象或dict
+            text_content = ""
+            
+            # 处理对象类型的返回结果（如CallToolResult）
+            if hasattr(result, 'content'):
+                content = result.content
+                if content and len(content) > 0:
+                    first_content = content[0]
+                    if hasattr(first_content, 'text'):
+                        text_content = first_content.text
+                    elif isinstance(first_content, dict):
+                        text_content = first_content.get('text', '')
+            # 处理dict类型的返回结果
+            elif isinstance(result, dict):
                 if result.get("isError"):
                     error_msg = result.get("content", [{}])[0].get("text", "Unknown error")
                     raise Exception(f"MCP工具调用失败: {error_msg}")
-
                 content = result.get("content", [])
                 if content and isinstance(content, list):
-                    # 提取文本内容并解析
                     text_content = content[0].get("text", "")
-                    roles = self._parse_discover_result(text_content)
-                    logger.bind(tag=TAG).info(f"成功获取{len(roles)}个PromptX角色")
-                    return roles
+            
+            if text_content:
+                roles = self._parse_discover_result(text_content)
+                logger.bind(tag=TAG).info(f"成功获取{len(roles)}个PromptX角色")
+                return roles
 
-            logger.bind(tag=TAG).warning("promptx_discover返回结果格式不符合预期")
+            logger.bind(tag=TAG).warning("discover返回结果格式不符合预期")
             return []
 
         except Exception as e:
@@ -114,10 +126,9 @@ class PromptXService:
         """
         try:
             import json
+            import re
 
-            # discover工具通常返回JSON格式的文本
-            # 需要从文本中提取JSON部分
-            # 示例格式: "可用角色: {...json data...}"
+            roles = []
 
             # 尝试直接解析为JSON
             try:
@@ -129,29 +140,53 @@ class PromptXService:
             except json.JSONDecodeError:
                 pass
 
-            # 如果直接解析失败,尝试从文本中提取JSON
-            # 查找```json...```代码块或直接的JSON对象
-            import re
+            # 解析Markdown格式的角色列表
+            # 格式示例:
+            # 📦 **系统角色** (6个)
+            # - `assistant`: assistant → action("assistant")
+            # - `luban`: 鲁班 - AI工具集成专家 → action("luban")
+            
+            # 匹配角色行: - `role_id`: role_name - description → action("role_id")
+            # 或: - `role_id`: role_name → action("role_id")
+            role_pattern = r'- `([^`]+)`: ([^→]+)→ action\("([^"]+)"\)'
+            
+            current_source = "system"
+            for line in text_content.split('\n'):
+                # 检测角色来源
+                if '**系统角色**' in line:
+                    current_source = "system"
+                elif '**项目角色**' in line:
+                    current_source = "project"
+                elif '**用户角色**' in line:
+                    current_source = "user"
+                
+                # 匹配角色行
+                match = re.search(role_pattern, line)
+                if match:
+                    role_id = match.group(1).strip()
+                    name_desc = match.group(2).strip()
+                    
+                    # 分离名称和描述
+                    if ' - ' in name_desc:
+                        parts = name_desc.split(' - ', 1)
+                        role_name = parts[0].strip()
+                        role_description = parts[1].strip() if len(parts) > 1 else ""
+                    else:
+                        role_name = name_desc.strip()
+                        role_description = ""
+                    
+                    roles.append({
+                        "id": role_id,
+                        "name": role_name,
+                        "description": role_description,
+                        "source": current_source,
+                        "protocol": "role",
+                        "reference": f"@role://{role_id}"
+                    })
 
-            # 匹配```json...```代码块
-            json_match = re.search(r'```json\s*(.*?)\s*```', text_content, re.DOTALL)
-            if json_match:
-                json_str = json_match.group(1)
-                data = json.loads(json_str)
-                if isinstance(data, dict) and "roles" in data:
-                    return data["roles"]
-                elif isinstance(data, list):
-                    return data
-
-            # 匹配直接的JSON对象或数组
-            json_match = re.search(r'(\{.*\}|\[.*\])', text_content, re.DOTALL)
-            if json_match:
-                json_str = json_match.group(1)
-                data = json.loads(json_str)
-                if isinstance(data, dict) and "roles" in data:
-                    return data["roles"]
-                elif isinstance(data, list):
-                    return data
+            if roles:
+                logger.bind(tag=TAG).info(f"从Markdown格式解析出{len(roles)}个角色")
+                return roles
 
             logger.bind(tag=TAG).warning(f"无法从文本中解析角色数据: {text_content[:200]}")
             return []

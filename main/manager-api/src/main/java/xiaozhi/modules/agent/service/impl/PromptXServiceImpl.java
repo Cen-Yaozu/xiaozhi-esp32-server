@@ -17,8 +17,8 @@ import org.springframework.web.client.RestTemplate;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import lombok.RequiredArgsConstructor;
 import xiaozhi.common.exception.ErrorCode;
 import xiaozhi.common.exception.RenException;
 import xiaozhi.modules.agent.dto.PromptXRoleDTO;
@@ -33,10 +33,9 @@ import xiaozhi.modules.agent.service.PromptXService;
  */
 @Slf4j
 @Service
-@AllArgsConstructor
+@RequiredArgsConstructor
 public class PromptXServiceImpl implements PromptXService {
     private final RestTemplate restTemplate;
-    private final ObjectMapper objectMapper = new ObjectMapper();
 
     // xiaozhi-server的HTTP端口，默认8003
     @Value("${xiaozhi.server.http-port:8003}")
@@ -62,6 +61,7 @@ public class PromptXServiceImpl implements PromptXService {
             headers.setContentType(MediaType.APPLICATION_JSON);
             HttpEntity<String> entity = new HttpEntity<>(headers);
 
+            @SuppressWarnings("rawtypes")
             ResponseEntity<Map> response = restTemplate.exchange(
                 url,
                 HttpMethod.GET,
@@ -69,6 +69,7 @@ public class PromptXServiceImpl implements PromptXService {
                 Map.class
             );
 
+            @SuppressWarnings("unchecked")
             Map<String, Object> responseBody = response.getBody();
             if (responseBody == null) {
                 throw new RenException(ErrorCode.INTERNAL_SERVER_ERROR, "Python API返回空响应");
@@ -81,6 +82,7 @@ public class PromptXServiceImpl implements PromptXService {
                 throw new RenException(ErrorCode.INTERNAL_SERVER_ERROR, msg);
             }
 
+            @SuppressWarnings("unchecked")
             List<Map<String, Object>> dataList = (List<Map<String, Object>>) responseBody.get("data");
             if (dataList == null) {
                 return new ArrayList<>();
@@ -110,8 +112,13 @@ public class PromptXServiceImpl implements PromptXService {
 
     @Override
     public String generateSystemPrompt(String roleId, String roleName, String roleDescription) {
-        if (StringUtils.isBlank(roleId) || StringUtils.isBlank(roleName) || StringUtils.isBlank(roleDescription)) {
-            throw new RenException(ErrorCode.PARAMS_GET_ERROR, "roleId, roleName, roleDescription不能为空");
+        if (StringUtils.isBlank(roleId) || StringUtils.isBlank(roleName)) {
+            throw new RenException(ErrorCode.PARAMS_GET_ERROR, "roleId, roleName不能为空");
+        }
+
+        // 如果roleDescription为空，使用空字符串
+        if (roleDescription == null) {
+            roleDescription = "";
         }
 
         String url = getBaseUrl() + "/api/promptx/generate-prompt";
@@ -128,6 +135,7 @@ public class PromptXServiceImpl implements PromptXService {
             headers.setContentType(MediaType.APPLICATION_JSON);
             HttpEntity<Map<String, String>> entity = new HttpEntity<>(requestBody, headers);
 
+            @SuppressWarnings("rawtypes")
             ResponseEntity<Map> response = restTemplate.exchange(
                 url,
                 HttpMethod.POST,
@@ -135,6 +143,7 @@ public class PromptXServiceImpl implements PromptXService {
                 Map.class
             );
 
+            @SuppressWarnings("unchecked")
             Map<String, Object> responseBody = response.getBody();
             if (responseBody == null) {
                 throw new RenException(ErrorCode.INTERNAL_SERVER_ERROR, "Python API返回空响应");

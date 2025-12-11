@@ -53,5 +53,5 @@ spring:
 # xiaozhi-server配置
 xiaozhi:
   server:
-    host: 127.0.0.1          # xiaozhi-server服务地址
+    host: xiaozhi-esp32-server          # xiaozhi-server服务地址（Docker内部使用服务名）
     http-port: 8003          # xiaozhi-server HTTP端口

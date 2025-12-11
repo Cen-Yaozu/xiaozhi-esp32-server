@@ -123,8 +123,12 @@ promptx_remember(role: "{{ROLE_ID}}", engrams: [...])
         """
         try:
             # 验证参数
-            if not role_id or not role_name or not role_description:
-                raise ValueError("角色ID、名称和描述都是必填参数")
+            if not role_id or not role_name:
+                raise ValueError("角色ID和名称是必填参数")
+
+            # 如果描述为空，使用默认值
+            if not role_description:
+                role_description = "暂无描述"
 
             # 重新加载模板(支持热更新)
             if self.template_path and os.path.exists(self.template_path):

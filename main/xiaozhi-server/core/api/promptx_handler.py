@@ -142,13 +142,13 @@ class PromptXHandler:
             # 验证必填参数
             role_id = body.get("roleId")
             role_name = body.get("roleName")
-            role_description = body.get("roleDescription")
+            role_description = body.get("roleDescription", "")  # 允许空描述
 
-            if not role_id or not role_name or not role_description:
+            if not role_id or not role_name:
                 return web.json_response(
                     {
                         "code": 400,
-                        "msg": "缺少必填参数: roleId, roleName, roleDescription",
+                        "msg": "缺少必填参数: roleId, roleName",
                         "data": None
                     },
                     status=400

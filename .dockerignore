@@ -5,3 +5,7 @@ __pycache__
 Dockerfile
 tmp/
 data/
+
+# 排除前端构建缓存
+main/manager-web/node_modules
+main/manager-web/dist

@@ -95,7 +95,6 @@ public class AgentEntity {
     /**
      * 判断是否为PromptX智能体
      */
-    @TableField(exist = false)
     public boolean isPromptXAgent() {
         return "promptx".equalsIgnoreCase(this.agentType);
     }

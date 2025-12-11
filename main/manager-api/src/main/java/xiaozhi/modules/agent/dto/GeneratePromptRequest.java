@@ -19,7 +19,6 @@ public class GeneratePromptRequest {
     @Schema(description = "角色显示名称", required = true, example = "产品经理")
     private String roleName;
 
-    @NotBlank(message = "角色描述不能为空")
-    @Schema(description = "角色功能描述", required = true, example = "专业的产品设计专家")
+    @Schema(description = "角色功能描述", required = false, example = "专业的产品设计专家")
     private String roleDescription;
 }

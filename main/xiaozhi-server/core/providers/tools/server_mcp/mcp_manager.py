@@ -67,11 +67,19 @@ class ServerMCPManager:
                 # 初始化服务端MCP客户端
                 logger.bind(tag=TAG).info(f"初始化服务端MCP客户端: {name}")
                 client = ServerMCPClient(srv_config)
-                await client.initialize(logging_callback=self.logging_callback)
+                # 添加超时机制，防止单个MCP服务连接卡死导致整个服务无法启动
+                await asyncio.wait_for(
+                    client.initialize(logging_callback=self.logging_callback), 
+                    timeout=5.0
+                )
                 self.clients[name] = client
                 client_tools = client.get_available_tools()
                 self.tools.extend(client_tools)
 
+            except asyncio.TimeoutError:
+                logger.bind(tag=TAG).error(
+                    f"Timeout initializing MCP server {name}. Verify the service is running at {srv_config.get('url') or srv_config.get('command')}"
+                )
             except Exception as e:
                 logger.bind(tag=TAG).error(
                     f"Failed to initialize MCP server {name}: {e}"

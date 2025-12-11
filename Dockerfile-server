@@ -1,6 +1,13 @@
 # 生产镜像，仅包含应用代码
 FROM ghcr.io/xinnan-tech/xiaozhi-esp32-server:server-base
 
+# 安装 MCP 相关依赖：node/npm/npx 以及常用的 MCP server 包和 mcp-proxy
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends nodejs npm python3-pip && \
+    npm install -g @modelcontextprotocol/server-filesystem @executeautomation/playwright-mcp-server @simonb97/server-win-cli && \
+    pip install -U mcp-proxy && \
+    rm -rf /var/lib/apt/lists/*
+
 COPY main/xiaozhi-server .
 
 # 启动应用
