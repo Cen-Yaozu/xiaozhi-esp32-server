@@ -1,4 +1,29 @@
 """
+❌ 已废弃 (Deprecated since 2025-12-12)
+
+此模板服务已不再使用。
+
+【新的实现方式】
+- 直接使用 promptx_action 工具返回的角色定义
+- 在 connection.py 的 _get_promptx_role_definition 方法中实现
+- 不再需要模板替换逻辑
+
+【废弃原因】
+- 模板生成的工作流指令（2000 tokens）是冗余的
+- action返回的角色定义已经包含完整的角色信息和工具使用说明
+- LLM能够根据角色定义自己决定工具调用，不需要显式的工作流指令
+
+【相关代码】
+- 新实现：connection.py::_get_promptx_role_definition()
+- 相关文档：specs/001-promptx-integration/agent-workflow-comparison.md
+
+保留此文件仅为向后兼容，避免旧代码报错。
+如果您在使用中看到此消息，请更新到新的实现方式。
+"""
+
+# ============ 以下是废弃的代码，仅保留用于兼容性 ============
+
+"""
 PromptX系统提示词模板生成服务
 负责读取模板文件并根据角色信息生成最终的系统提示词
 """

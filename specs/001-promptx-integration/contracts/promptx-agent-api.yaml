@@ -1,0 +1,688 @@
+openapi: 3.0.3
+info:
+  title: PromptX智能体集成API
+  description: |
+    小智ESP32服务器 PromptX智能体集成的REST API规范
+
+    功能概述:
+    - 获取PromptX角色列表
+    - 生成系统提示词
+    - 创建和管理PromptX智能体
+
+  version: 1.0.0
+  contact:
+    name: 小智开发团队
+    url: https://github.com/xinnan-tech/xiaozhi-esp32-server
+
+servers:
+  - url: http://localhost:8000/api
+    description: 本地开发服务器
+  - url: http://192.168.10.142:8000/api
+    description: 局域网测试服务器
+
+tags:
+  - name: PromptX Roles
+    description: PromptX角色发现和管理
+  - name: PromptX Agents
+    description: PromptX智能体配置管理
+
+paths:
+  /promptx/roles:
+    get:
+      tags:
+        - PromptX Roles
+      summary: 获取PromptX角色列表
+      description: |
+        调用PromptX MCP服务的discover工具,获取所有可用的AI角色列表。
+        角色包含系统级、项目级和用户级三个来源。
+
+        **缓存策略**: 后端缓存5分钟
+
+      operationId: getPromptXRoles
+      parameters:
+        - name: source
+          in: query
+          description: 过滤角色来源
+          required: false
+          schema:
+            type: string
+            enum: [system, project, user]
+          example: system
+
+        - name: refresh
+          in: query
+          description: 强制刷新缓存
+          required: false
+          schema:
+            type: boolean
+            default: false
+          example: false
+
+      responses:
+        '200':
+          description: 成功返回角色列表
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "success"
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/PromptXRole'
+                  timestamp:
+                    type: integer
+                    format: int64
+                    example: 1701504000000
+
+              examples:
+                success:
+                  summary: 成功响应示例
+                  value:
+                    code: 200
+                    message: "success"
+                    data:
+                      - id: "product-manager"
+                        name: "产品经理"
+                        description: "专业的产品设计和需求分析专家"
+                        source: "system"
+                        protocol: "role"
+                        reference: "@package://resource/role/product-manager/product-manager.role.md"
+                      - id: "java-developer"
+                        name: "Java开发工程师"
+                        description: "后端开发和架构设计专家"
+                        source: "user"
+                        protocol: "role"
+                        reference: "@user://resource/role/java-developer/java-developer.role.md"
+                    timestamp: 1701504000000
+
+        '503':
+          description: PromptX MCP服务不可用
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: 503
+                message: "PromptX服务当前不可用,请检查服务状态或稍后重试"
+                timestamp: 1701504000000
+
+        '500':
+          description: 服务器内部错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /promptx/generate-prompt:
+    post:
+      tags:
+        - PromptX Roles
+      summary: 生成PromptX系统提示词
+      description: |
+        基于角色信息生成标准化的系统提示词。
+        使用模板替换{{ROLE_ID}}, {{ROLE_NAME}}, {{ROLE_DESCRIPTION}}变量。
+
+      operationId: generatePromptXSystemPrompt
+      requestBody:
+        description: 角色信息
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GeneratePromptRequest'
+            examples:
+              product-manager:
+                summary: 产品经理角色
+                value:
+                  roleId: "product-manager"
+                  roleName: "产品经理"
+                  roleDescription: "专业的产品设计和需求分析专家"
+
+      responses:
+        '200':
+          description: 成功生成系统提示词
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "success"
+                  data:
+                    type: string
+                    description: 生成的系统提示词(Markdown格式)
+                    example: |
+                      # 你是一个集成PromptX的AI智能体
+
+                      ## 核心身份
+                      你通过PromptX平台获得专业角色能力。每次对话开始时，你需要激活指定的PromptX角色。
+
+                      ## 必须遵循的工作流程
+
+                      ### 第1步：对话开始时激活角色
+                      - 使用 `promptx_action` 工具激活角色：**product-manager**
+                      ...
+
+        '400':
+          description: 请求参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: 400
+                message: "roleId不能为空"
+                timestamp: 1701504000000
+
+        '404':
+          description: 模板文件未找到
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /agents/promptx:
+    post:
+      tags:
+        - PromptX Agents
+      summary: 创建PromptX智能体
+      description: |
+        创建一个新的PromptX智能体配置。
+        系统会自动:
+        1. 验证PromptX角色ID的有效性
+        2. 生成系统提示词(如果未提供)
+        3. 保存配置到数据库
+
+      operationId: createPromptXAgent
+      requestBody:
+        description: PromptX智能体配置
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentCreateRequest'
+            examples:
+              product-manager-agent:
+                summary: 创建产品经理智能体
+                value:
+                  agentName: "产品经理小智"
+                  agentType: "promptx"
+                  promptxRoleId: "product-manager"
+                  promptxRoleSource: "system"
+                  llmModelId: "glm-4.6"
+                  asrModelId: "SenseVoiceSmall"
+                  ttsModelId: "EdgeTTS"
+                  ttsVoiceId: "zh-CN-XiaoxiaoNeural"
+
+      responses:
+        '201':
+          description: 智能体创建成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 201
+                  message:
+                    type: string
+                    example: "智能体创建成功"
+                  data:
+                    $ref: '#/components/schemas/AgentEntity'
+
+        '400':
+          description: 请求参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                missing-role:
+                  summary: 缺少角色ID
+                  value:
+                    code: 400
+                    message: "PromptX智能体必须指定promptxRoleId"
+                    timestamp: 1701504000000
+                invalid-type:
+                  summary: 无效的智能体类型
+                  value:
+                    code: 400
+                    message: "智能体类型必须是normal或promptx"
+                    timestamp: 1701504000000
+
+        '503':
+          description: PromptX服务不可用
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /agents/promptx/{agentId}:
+    get:
+      tags:
+        - PromptX Agents
+      summary: 查询PromptX智能体详情
+      description: 根据智能体ID获取完整配置信息
+      operationId: getPromptXAgentById
+      parameters:
+        - name: agentId
+          in: path
+          description: 智能体唯一标识
+          required: true
+          schema:
+            type: string
+          example: "agent_123456"
+
+      responses:
+        '200':
+          description: 成功返回智能体详情
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "success"
+                  data:
+                    $ref: '#/components/schemas/AgentEntity'
+
+        '404':
+          description: 智能体不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: 404
+                message: "智能体不存在"
+                timestamp: 1701504000000
+
+    put:
+      tags:
+        - PromptX Agents
+      summary: 更新PromptX智能体配置
+      description: |
+        更新智能体配置。
+
+        **注意事项**:
+        - 可以更换PromptX角色,系统会自动重新生成系统提示词
+        - 不能将PromptX智能体改为普通智能体(需删除后重建)
+
+      operationId: updatePromptXAgent
+      parameters:
+        - name: agentId
+          in: path
+          description: 智能体唯一标识
+          required: true
+          schema:
+            type: string
+
+      requestBody:
+        description: 更新的配置
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentUpdateRequest'
+
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "更新成功"
+                  data:
+                    $ref: '#/components/schemas/AgentEntity'
+
+        '400':
+          description: 请求参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+        '404':
+          description: 智能体不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    delete:
+      tags:
+        - PromptX Agents
+      summary: 删除PromptX智能体
+      description: 删除指定的智能体配置
+      operationId: deletePromptXAgent
+      parameters:
+        - name: agentId
+          in: path
+          description: 智能体唯一标识
+          required: true
+          schema:
+            type: string
+
+      responses:
+        '204':
+          description: 删除成功(无返回内容)
+
+        '404':
+          description: 智能体不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    PromptXRole:
+      type: object
+      description: PromptX角色信息
+      required:
+        - id
+        - name
+        - description
+        - source
+        - protocol
+      properties:
+        id:
+          type: string
+          description: 角色唯一标识(kebab-case格式)
+          example: "product-manager"
+        name:
+          type: string
+          description: 角色显示名称
+          example: "产品经理"
+        description:
+          type: string
+          description: 角色功能描述
+          example: "专业的产品设计和需求分析专家"
+        source:
+          type: string
+          description: 角色来源
+          enum: [system, project, user]
+          example: "system"
+        protocol:
+          type: string
+          description: 资源协议/类型
+          example: "role"
+        reference:
+          type: string
+          description: 资源引用路径
+          example: "@package://resource/role/product-manager/product-manager.role.md"
+
+    GeneratePromptRequest:
+      type: object
+      description: 生成系统提示词请求
+      required:
+        - roleId
+        - roleName
+        - roleDescription
+      properties:
+        roleId:
+          type: string
+          description: PromptX角色ID
+          example: "product-manager"
+        roleName:
+          type: string
+          description: 角色显示名称
+          example: "产品经理"
+        roleDescription:
+          type: string
+          description: 角色功能描述
+          example: "专业的产品设计和需求分析专家"
+
+    AgentCreateRequest:
+      type: object
+      description: 创建智能体请求
+      required:
+        - agentName
+        - agentType
+      properties:
+        agentName:
+          type: string
+          description: 智能体名称
+          minLength: 1
+          maxLength: 100
+          example: "产品经理小智"
+        agentType:
+          type: string
+          description: 智能体类型
+          enum: [normal, promptx]
+          example: "promptx"
+        promptxRoleId:
+          type: string
+          description: PromptX角色ID (promptx类型必填)
+          example: "product-manager"
+        promptxRoleSource:
+          type: string
+          description: PromptX角色来源 (promptx类型必填)
+          enum: [system, project, user]
+          example: "system"
+        systemPrompt:
+          type: string
+          description: 系统提示词 (promptx类型可选,会自动生成)
+        llmModelId:
+          type: string
+          description: LLM模型ID
+          example: "glm-4.6"
+        asrModelId:
+          type: string
+          description: 语音识别模型ID
+          example: "SenseVoiceSmall"
+        vadModelId:
+          type: string
+          description: 语音活动检测模型ID
+          example: "VAD"
+        ttsModelId:
+          type: string
+          description: 语音合成模型ID
+          example: "EdgeTTS"
+        ttsVoiceId:
+          type: string
+          description: 音色ID
+          example: "zh-CN-XiaoxiaoNeural"
+        memModelId:
+          type: string
+          description: 记忆模型ID
+        intentModelId:
+          type: string
+          description: 意图模型ID
+        chatHistoryConf:
+          type: integer
+          description: 聊天记录配置
+          minimum: 0
+          maximum: 100
+          example: 10
+        summaryMemory:
+          type: string
+          description: 总结记忆
+        langCode:
+          type: string
+          description: 语言编码
+          example: "zh-CN"
+        language:
+          type: string
+          description: 交互语种
+          example: "中文"
+
+    AgentUpdateRequest:
+      type: object
+      description: 更新智能体请求
+      properties:
+        agentName:
+          type: string
+          description: 智能体名称
+          example: "产品经理小智"
+        promptxRoleId:
+          type: string
+          description: PromptX角色ID (可更换角色)
+          example: "product-manager"
+        promptxRoleSource:
+          type: string
+          description: PromptX角色来源
+          enum: [system, project, user]
+          example: "system"
+        llmModelId:
+          type: string
+          description: LLM模型ID
+        # ... 其他可更新字段
+
+    AgentEntity:
+      type: object
+      description: 智能体完整配置
+      required:
+        - id
+        - agentName
+        - agentType
+      properties:
+        id:
+          type: string
+          description: 智能体唯一标识
+          example: "agent_123456"
+        userId:
+          type: integer
+          format: int64
+          description: 所属用户ID
+          example: 1001
+        agentCode:
+          type: string
+          description: 智能体编码
+          example: "PM_AGENT_001"
+        agentName:
+          type: string
+          description: 智能体名称
+          example: "产品经理小智"
+        agentType:
+          type: string
+          description: 智能体类型
+          enum: [normal, promptx]
+          example: "promptx"
+        promptxRoleId:
+          type: string
+          description: PromptX角色ID
+          example: "product-manager"
+        promptxRoleSource:
+          type: string
+          description: PromptX角色来源
+          enum: [system, project, user]
+          example: "system"
+        systemPrompt:
+          type: string
+          description: 系统提示词
+          example: "# 你是一个集成PromptX的AI智能体\n\n..."
+        llmModelId:
+          type: string
+          description: LLM模型ID
+          example: "glm-4.6"
+        asrModelId:
+          type: string
+          description: 语音识别模型ID
+        vadModelId:
+          type: string
+          description: 语音活动检测模型ID
+        ttsModelId:
+          type: string
+          description: 语音合成模型ID
+        ttsVoiceId:
+          type: string
+          description: 音色ID
+        memModelId:
+          type: string
+          description: 记忆模型ID
+        intentModelId:
+          type: string
+          description: 意图模型ID
+        chatHistoryConf:
+          type: integer
+          description: 聊天记录配置
+        summaryMemory:
+          type: string
+          description: 总结记忆
+        langCode:
+          type: string
+          description: 语言编码
+        language:
+          type: string
+          description: 交互语种
+        sort:
+          type: integer
+          description: 排序
+        creator:
+          type: integer
+          format: int64
+          description: 创建者ID
+        createdAt:
+          type: string
+          format: date-time
+          description: 创建时间
+          example: "2025-12-02T10:30:00Z"
+        updater:
+          type: integer
+          format: int64
+          description: 更新者ID
+        updatedAt:
+          type: string
+          format: date-time
+          description: 更新时间
+          example: "2025-12-02T12:45:00Z"
+
+    ErrorResponse:
+      type: object
+      description: 错误响应统一格式
+      required:
+        - code
+        - message
+        - timestamp
+      properties:
+        code:
+          type: integer
+          description: 错误代码
+          example: 400
+        message:
+          type: string
+          description: 错误消息
+          example: "请求参数错误"
+        details:
+          type: string
+          description: 错误详情(可选)
+          example: "promptxRoleId不能为空"
+        timestamp:
+          type: integer
+          format: int64
+          description: 错误发生时间戳
+          example: 1701504000000
+
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT认证令牌
+
+security:
+  - BearerAuth: []

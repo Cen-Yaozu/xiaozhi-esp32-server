@@ -418,10 +418,31 @@ class ConnectionHandler:
             )
             self.logger = create_connection_logger(self.selected_module_str)
 
-            """初始化组件"""
-            if self.config.get("prompt") is not None:
+            """初始化组件 - 支持PromptX和Normal两种模式"""
+            # ✅ 新增：判断智能体类型
+            agent_type = self.config.get("agent_type", "normal")
+
+            if agent_type == "promptx":
+                # PromptX模式：使用action返回的角色定义
+                role_id = self.config.get("promptx_role_id")
+                if role_id:
+                    try:
+                        prompt = self._get_promptx_role_definition(role_id)
+                        self.change_system_prompt(prompt)
+                        self.logger.bind(tag=TAG).info(
+                            f"✅ PromptX角色已加载: {role_id}, 提示词长度: {len(prompt)}"
+                        )
+                    except Exception as e:
+                        self.logger.bind(tag=TAG).error(f"❌ 加载PromptX角色失败: {e}")
+                        # 降级方案：使用简化提示词
+                        fallback_prompt = f"你是PromptX角色: {role_id}\n请以该角色的专业能力回答用户问题。"
+                        self.change_system_prompt(fallback_prompt)
+                else:
+                    self.logger.bind(tag=TAG).warning("⚠️ PromptX模式但未配置role_id")
+
+            elif self.config.get("prompt") is not None:
+                # Normal模式：使用快速提示词初始化
                 user_prompt = self.config["prompt"]
-                # 使用快速提示词进行初始化
                 prompt = self.prompt_manager.get_quick_prompt(user_prompt)
                 self.change_system_prompt(prompt)
                 self.logger.bind(tag=TAG).info(
@@ -454,8 +475,10 @@ class ConnectionHandler:
             self._initialize_intent()
             """初始化上报线程"""
             self._init_report_threads()
-            """更新系统提示词"""
-            self._init_prompt_enhancement()
+            """更新系统提示词 - 仅Normal模式"""
+            # ✅ 修改：PromptX模式不需要增强提示词
+            if agent_type != "promptx":
+                self._init_prompt_enhancement()
 
         except Exception as e:
             self.logger.bind(tag=TAG).error(f"实例化组件失败: {e}")
@@ -1250,3 +1273,97 @@ class ConnectionHandler:
                 tool_calls_list[tool_index]["name"] = tool_call.function.name
             if tool_call.function.arguments:
                 tool_calls_list[tool_index]["arguments"] += tool_call.function.arguments
+
+    def _get_promptx_role_definition(self, role_id: str) -> str:
+        """
+        获取PromptX角色定义作为系统提示词
+
+        Args:
+            role_id: PromptX角色ID，如 "luban", "product-manager"
+
+        Returns:
+            str: 角色定义的完整文本内容（由action工具返回）
+
+        工作原理：
+            1. 调用MCP工具 promptx_action(role=role_id)
+            2. action返回包含角色定义、工具使用说明、工作方法等
+            3. LLM看到后会自己决定何时调用recall/remember工具
+        """
+        try:
+            from core.providers.tools.server_mcp.promptx_service import PromptXService
+            from core.providers.tools.server_mcp.manager import get_mcp_manager
+
+            self.logger.bind(tag=TAG).info(f"正在加载PromptX角色定义: {role_id}")
+
+            # 获取MCP管理器和PromptX服务
+            mcp_manager = get_mcp_manager()
+            if not mcp_manager:
+                raise Exception("MCP管理器未初始化")
+
+            promptx_service = PromptXService(mcp_manager)
+
+            # 调用action工具获取角色定义（同步方式）
+            future = asyncio.run_coroutine_threadsafe(
+                promptx_service.activate_role(role_id),
+                self.loop
+            )
+            result = future.result(timeout=10)  # 10秒超时
+
+            # 提取文本内容
+            text_content = self._extract_mcp_text(result)
+
+            if not text_content:
+                raise Exception("action返回内容为空")
+
+            self.logger.bind(tag=TAG).info(
+                f"✅ PromptX角色定义加载成功: {role_id}, "
+                f"内容长度: {len(text_content)} 字符 (~{len(text_content)//4} tokens)"
+            )
+
+            return text_content
+
+        except TimeoutError:
+            self.logger.bind(tag=TAG).error(f"❌ 加载PromptX角色超时: {role_id}")
+            raise Exception(f"加载角色超时（>10秒）: {role_id}")
+        except Exception as e:
+            self.logger.bind(tag=TAG).error(f"❌ 获取PromptX角色定义失败: {e}")
+            raise
+
+    def _extract_mcp_text(self, result) -> str:
+        """
+        从MCP工具调用结果中提取文本内容
+
+        Args:
+            result: MCP工具返回的结果对象
+
+        Returns:
+            str: 提取的文本内容
+
+        支持的结果格式：
+            - 对象格式: result.content[0].text
+            - 字典格式: result["content"][0]["text"]
+        """
+        try:
+            # 处理对象类型返回（CallToolResult对象）
+            if hasattr(result, 'content'):
+                content = result.content
+                if content and len(content) > 0:
+                    first_content = content[0]
+                    if hasattr(first_content, 'text'):
+                        return first_content.text
+                    elif isinstance(first_content, dict):
+                        return first_content.get('text', '')
+
+            # 处理字典类型返回
+            elif isinstance(result, dict):
+                content = result.get("content", [])
+                if content and isinstance(content, list) and len(content) > 0:
+                    return content[0].get("text", "")
+
+            self.logger.bind(tag=TAG).warning("⚠️ 无法从MCP结果中提取文本")
+            return ""
+
+        except Exception as e:
+            self.logger.bind(tag=TAG).error(f"❌ 提取MCP文本失败: {e}")
+            return ""
+

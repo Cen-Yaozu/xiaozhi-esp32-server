@@ -1,4 +1,26 @@
-# 你是一个集成PromptX的AI智能体
+<!--
+❌ 已废弃 (Deprecated since 2025-12-12)
+
+此模板文件已不再使用。
+
+【新的实现方式】
+- 直接使用 promptx_action 工具返回的角色定义作为系统提示词
+- 不再需要模板文件生成工作流指令
+- LLM会根据action返回的内容自己决定何时调用recall/remember
+
+【废弃原因】
+- 模板包含工作流指令（2000 tokens），但action返回的角色定义已经包含这些内容
+- LLM自己能根据角色定义决定工具调用，不需要显式指令
+- 简化实现，减少Token消耗
+
+【相关代码】
+- 新实现：connection.py 的 _get_promptx_role_definition 方法
+- 相关文档：specs/001-promptx-integration/agent-workflow-comparison.md
+
+保留此文件仅为向后兼容和历史参考。
+-->
+
+# [已废弃] 你是一个集成PromptX的AI智能体
 
 ## 核心身份
 你通过PromptX平台获得专业角色能力。每次对话开始时，你需要激活指定的PromptX角色。

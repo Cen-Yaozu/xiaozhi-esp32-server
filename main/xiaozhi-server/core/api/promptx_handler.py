@@ -106,25 +106,30 @@ class PromptXHandler:
 
     async def handle_generate_prompt(self, request: web.Request) -> web.Response:
         """
+        ❌ 已废弃 (Deprecated since 2025-12-12)
+
         POST /api/promptx/generate-prompt
         生成PromptX系统提示词
 
-        Request Body:
-            {
-              "roleId": "product-manager",
-              "roleName": "产品经理",
-              "roleDescription": "专业的产品设计和需求分析专家"
-            }
+        【废弃说明】
+        此接口已废弃，不再需要生成系统提示词。
+        新实现在运行时通过 promptx_action 工具直接获取角色定义。
 
-        Returns:
-            {
-              "code": 0,
-              "msg": "success",
-              "data": "# 你是一个集成PromptX的AI智能体\\n\\n## 角色信息..."
-            }
+        【新的实现方式】
+        - 前端只需保存 promptxRoleId，systemPrompt留空
+        - 运行时在connection.py中调用_get_promptx_role_definition()
+        - 直接使用action返回的角色定义作为系统提示词
+
+        【保留原因】
+        - 向后兼容，避免前端调用报错
+        - 建议前端更新后不再调用此接口
+
+        【相关代码】
+        - 新实现：connection.py::_get_promptx_role_definition()
+        - 相关文档：specs/001-promptx-integration/agent-workflow-comparison.md
         """
         try:
-            logger.bind(tag=TAG).info("收到生成系统提示词请求")
+            logger.bind(tag=TAG).warning("⚠️ 调用了已废弃的接口: POST /api/promptx/generate-prompt")
 
             # 解析请求体
             try:
@@ -139,54 +144,41 @@ class PromptXHandler:
                     status=400
                 )
 
-            # 验证必填参数
-            role_id = body.get("roleId")
-            role_name = body.get("roleName")
-            role_description = body.get("roleDescription", "")  # 允许空描述
+            role_id = body.get("roleId", "unknown")
+            role_name = body.get("roleName", "未知角色")
 
-            if not role_id or not role_name:
-                return web.json_response(
-                    {
-                        "code": 400,
-                        "msg": "缺少必填参数: roleId, roleName",
-                        "data": None
-                    },
-                    status=400
-                )
+            # 返回废弃提示信息
+            deprecated_message = f"""【此接口已废弃】
 
-            # 生成系统提示词
-            system_prompt = self.template_service.generate_system_prompt(
-                role_id=role_id,
-                role_name=role_name,
-                role_description=role_description
-            )
+角色: {role_name} ({role_id})
 
-            logger.bind(tag=TAG).info(f"成功生成系统提示词，角色: {role_name}")
+新的PromptX实现：
+1. 系统提示词在运行时通过 promptx_action 工具自动加载
+2. 前端配置时，systemPrompt字段留空即可
+3. 不需要在配置阶段生成提示词
+
+优势：
+- 减少Token消耗（节省2000+ tokens）
+- 简化流程，减少API调用
+- LLM根据action返回的角色定义自己决定工具调用
+
+建议：前端更新后不再调用此接口。
+"""
 
             return web.json_response(
                 {
                     "code": 0,
-                    "msg": "success",
-                    "data": system_prompt
+                    "msg": "success (deprecated)",
+                    "data": deprecated_message
                 }
             )
 
-        except ValueError as e:
-            logger.bind(tag=TAG).warning(f"参数验证失败: {e}")
-            return web.json_response(
-                {
-                    "code": 400,
-                    "msg": str(e),
-                    "data": None
-                },
-                status=400
-            )
         except Exception as e:
-            logger.bind(tag=TAG).error(f"生成系统提示词失败: {e}", exc_info=True)
+            logger.bind(tag=TAG).error(f"处理废弃接口失败: {e}", exc_info=True)
             return web.json_response(
                 {
                     "code": 500,
-                    "msg": f"生成系统提示词失败: {str(e)}",
+                    "msg": f"处理失败: {str(e)}",
                     "data": None
                 },
                 status=500

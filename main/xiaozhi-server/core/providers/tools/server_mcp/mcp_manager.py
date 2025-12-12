@@ -7,7 +7,7 @@ from datetime import timedelta
 from typing import Dict, Any, List
 
 from mcp import Implementation
-from mcp.client.session import SamplingFnT, ElicitationFnT, ListRootsFnT, LoggingFnT, MessageHandlerFnT
+from mcp.client.session import SamplingFnT, ListRootsFnT, LoggingFnT, MessageHandlerFnT
 from mcp.shared.session import ProgressFnT
 from mcp.types import LoggingMessageNotificationParams
 

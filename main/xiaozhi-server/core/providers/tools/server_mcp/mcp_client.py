@@ -11,7 +11,7 @@ from contextlib import AsyncExitStack
 from typing import Optional, List, Dict, Any
 
 from mcp import ClientSession, StdioServerParameters, Implementation
-from mcp.client.session import SamplingFnT, ElicitationFnT, ListRootsFnT, LoggingFnT, MessageHandlerFnT
+from mcp.client.session import SamplingFnT, ListRootsFnT, LoggingFnT, MessageHandlerFnT
 from mcp.client.stdio import stdio_client
 from mcp.client.sse import sse_client
 from mcp.client.streamable_http import streamablehttp_client
@@ -46,7 +46,6 @@ class ServerMCPClient:
 
     async def initialize(self, read_timeout_seconds: timedelta | None = None,
              sampling_callback: SamplingFnT | None = None,
-             elicitation_callback: ElicitationFnT | None = None,
              list_roots_callback: ListRootsFnT | None = None,
              logging_callback: LoggingFnT | None = None,
              message_handler: MessageHandlerFnT | None = None,
@@ -164,7 +163,6 @@ class ServerMCPClient:
 
     async def _worker(self, read_timeout_seconds: timedelta | None = None,
              sampling_callback: SamplingFnT | None = None,
-             elicitation_callback: ElicitationFnT | None = None,
              list_roots_callback: ListRootsFnT | None = None,
              logging_callback: LoggingFnT | None = None,
              message_handler: MessageHandlerFnT | None = None,
